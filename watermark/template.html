@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watermark</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: "SF Pro SC","SF Pro Text","SF Pro Icons","PingFang SC","Helvetica Neue","Helvetica","Arial",sans-serif;
+        }
+        .watermark-container {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 1512px;
+            height: __HEIGHT__px;
+            background-color: var(--bg-color);  
+            background-image: var(--bg-image);      
+            background-size: cover;
+            background-position: center;
+        }
+        .flex-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+        .cameraModel-container, .logo-container, .separatorContainer, .text-container {
+            display: flex;
+            align-items: center;
+        }
+        .cameraModel-container {
+            flex: 1;
+            justify-content: flex-start;
+            padding-left: 4%;
+            font-weight: 800;
+            background: linear-gradient(var(--gradient-direction), var(--gradient-start) var(--gradient-middle-stop), var(--gradient-end));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .logo-container {
+            width: __HEIGHT__px;
+            justify-content: flex-end;
+            padding-right: 2%;
+        }
+        .logo-size {
+            height: 100%;
+            max-height: 45%;
+            max-width: calc(__HEIGHT__* 2);
+            object-fit: contain;
+        }
+        .logo-color {
+            fill: url(#gradient); /* 确保 logo 使用渐变 */
+        }
+        .separatorContainer {
+            flex: 0;
+            justify-content: center;
+            
+        }
+        .separator {
+            height: 25%;
+            width: 3px;
+            background: linear-gradient(var(--gradient-direction), var(--gradient-start) var(--gradient-middle-stop), var(--gradient-end));
+            opacity: 0.5;
+        }
+        .text-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            padding-left: 2%;
+            padding-right: 4%;
+            letter-spacing: 0.05em;
+            line-height: 1.5;
+            background: linear-gradient(var(--gradient-direction), var(--gradient-start) var(--gradient-middle-stop), var(--gradient-end));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .cameraSettings {
+            font-size: 0.7em;
+            font-weight: 600;
+        }
+        .gpsInfo {
+            font-size: 0.6em;
+            font-weight: 200;
+        }
+        #textContent.custom-content {
+            font-size: 1.25em;
+            font-weight: 700;
+            font-family: 'SourceHanSerifCN', serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="watermark-container" id="watermarkContainer">
+        <div class="flex-container">
+            <div class="cameraModel-container">
+                <div class="cameraModel"></div>
+            </div>
+            <div class="logo-container">
+                <svg width="0" height="0" style="position: absolute;">
+                    <defs>
+                        <linearGradient id="gradient" x1="100%" y1="0%" x2="0%" y2="0%">
+                            <stop offset="30%" style="stop-color:rgb(245, 227, 217)"/>
+                            <stop offset="100%" style="stop-color:rgb(253, 201, 174)"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+           __LOGO__
+            </div>
+            <div class="separatorContainer">
+                <div class="separator"></div>
+            </div>
+            <div class="text-container" id="textContent">
+                <div id="defaultDisplay"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const customDisplay = "__CUSTOM__";
+        const textContent = document.getElementById('textContent');
+        const imageJson = __METADATA__ ;
+        const cameraModel = imageJson["{TIFF}"]?.Model || "__MODEL__";
+        
+        const { Latitude: latitude = 52.221666, Longitude: longitude = 124.691944, LatitudeRef: latitudeRef = 'N', LongitudeRef: longitudeRef = 'E' } = imageJson["{GPS}"] ?? {};
+        const { FocalLenIn35mmFilm: focalLength = 24, FNumber: fNumber = 1.78, ExposureTime: exposureTimeRaw = 1 / 60, ISOSpeedRatings: iso = 800 } = imageJson["{Exif}"] ?? {};
+
+        const exposureTime = exposureTimeRaw < 1 ? Math.floor(1 / exposureTimeRaw) : Math.floor(exposureTimeRaw);
+        const cameraSettings = `${focalLength}mm ƒ/${fNumber.toFixed(2)} 1/${exposureTime}s ISO${iso}`;
+        
+        const formatCoordinates = (lat, latRef, long, longRef) => {
+            const format = (coordinate, ref) => {
+                const degrees = Math.floor(coordinate);
+                const minutes = Math.floor((coordinate - degrees) * 60);
+                const seconds = Math.round(((coordinate - degrees) * 60 - minutes) * 60);
+                return `${degrees}°${minutes}'${seconds}"${ref}`;
+            };
+            return `${format(lat, latRef)} ${format(long, longRef)}`;
+        };
+        const gpsInfo = formatCoordinates(latitude, latitudeRef, longitude, longitudeRef);
+        
+        document.querySelector('.cameraModel').textContent = cameraModel;
+
+        textContent.innerHTML = customDisplay 
+            ? `<div>${customDisplay}</div>` 
+            : `<div class="cameraSettings">${cameraSettings}</div><div class="gpsInfo">${gpsInfo}</div>`;
+        textContent.classList.toggle('custom-content', Boolean(customDisplay));
+
+        const calculateFontSize = (containerHeight) => {
+            const goldenRatio = 1.618;
+            let calculatedSize = containerHeight / 2.5 / goldenRatio;
+            return Math.max(10, Math.min(calculatedSize, 50));
+        };
+
+        const setDynamicFontSize = () => {
+            const container = document.querySelector('.watermark-container');
+            const containerHeight = container.offsetHeight;
+            container.style.fontSize = calculateFontSize(containerHeight) + 'px';
+        };
+
+        ['load', 'resize'].forEach(event => window.addEventListener(event, setDynamicFontSize));
+
+        const themes = {
+                Light: {
+                    start: '#1d1d1f', // 深灰色
+                    end: '#1d1d1f',   
+                    direction: '45deg',
+                    middleStop: '30%',
+                    bgColor: '#f5f5f7', // 浅灰色
+                },
+                Dark: {
+                    start: '#F5F5F7', // 浅灰色
+                    end: '#F5F5F7',   // 深灰色
+                    direction: '45deg',
+                    middleStop: '30%',
+                    bgColor: '#1d1d1f', // 深灰色
+                },
+                Rose: {
+                    start: '#fdc9ae', // 浅橙色
+                    end: '#f5e3d9',   // 浅粉色
+                    direction: '45deg',
+                    middleStop: '30%',
+                    bgColor: '#1d1d1f', // 深灰色
+                },
+                Spring: {
+                    start: '#dcbb82', 
+                    end: '#ffeac8',   
+                    direction: '45deg',
+                    middleStop: '30%',
+                    bgImage: 'url("data:image/png;base64,__BG_SPRING__")'
+                },
+                Apple: {
+                    start: '#7f591e', 
+                    end: '#b69332',  
+                    direction: '45deg',
+                    middleStop: '30%',
+                    bgImage: 'url("data:image/png;base64,__BG_APPLE__")'
+                }
+            };
+         
+            const getSVGGradientDirection = (degrees) => {
+            const rad = ((450 - degrees) % 360) * (Math.PI / 180);
+            return {
+                x1: Math.round(50 - Math.cos(rad) * 50) + '%',
+                y1: Math.round(50 + Math.sin(rad) * 50) + '%',
+                x2: Math.round(50 + Math.cos(rad) * 50) + '%',
+                y2: Math.round(50 - Math.sin(rad) * 50) + '%'
+            };
+        };
+        const setTheme = (themeName) => {
+            const theme = themes[themeName];
+            if (!theme) return;
+            const root = document.documentElement;
+            root.style.setProperty('--gradient-start', theme.start);
+            root.style.setProperty('--gradient-end', theme.end);
+            root.style.setProperty('--gradient-direction', theme.direction);
+            root.style.setProperty('--gradient-middle-stop', theme.middleStop);
+            root.style.setProperty('--bg-color', theme.bgColor);
+            root.style.setProperty('--bg-image', theme.bgImage);
+            const gradientStops = document.querySelectorAll('#gradient stop');
+            gradientStops[0].style.stopColor = theme.start;
+            gradientStops[1].style.stopColor = theme.end;
+            gradientStops[0].setAttribute('offset', theme.middleStop);
+            const gradientDirection = getSVGGradientDirection(parseInt(theme.direction));
+            const gradientElement = document.querySelector('#gradient');
+            if (gradientElement) {
+                gradientElement.setAttribute('x1', gradientDirection.x1);
+                gradientElement.setAttribute('y1', gradientDirection.y1);
+                gradientElement.setAttribute('x2', gradientDirection.x2);
+                gradientElement.setAttribute('y2', gradientDirection.y2);
+            }
+        };
+        setTheme('__THEME__');
+           
+    </script>
+</body>
+</html>
